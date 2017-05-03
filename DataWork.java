@@ -15,8 +15,8 @@ import java.util.Map;
 public class DataWork {
 	
 	public static final String pathConfig = "./SolarPanelSimulator/data/linearisation.config";
-	public static Date limJour;
-	public static Date limNuit;
+	public static String limJour;
+	public static String limNuit;
 	public static final Map<String, Map<String, Double>> MapBorne;
 	static {
 		MapBorne = Collections.unmodifiableMap(config());
@@ -61,11 +61,8 @@ public class DataWork {
 				}
 				else if(!ligne.isEmpty() && ligne.charAt(0)=='h'){
 					String tab[] = ligne.split("\\s+");
-					DateFormat df = new SimpleDateFormat("hh:mm:ss");
-					limJour= df.parse(tab[1]); 
-					limNuit= df.parse(tab[2]);
-					System.out.println(limJour);
-					System.out.println(limNuit);
+					limJour= tab[1]; 
+					limNuit= tab[2];
 				}
 			}
 			brf.close();
@@ -383,30 +380,9 @@ public class DataWork {
 			){
 		int nb_data = data.size();
 		Integer[] keys = keys_to_array(data, nb_data);
-		Calendar dateNuit = Calendar.getInstance();
-		dateNuit.setTime(limNuit);
-		dateNuit.clear(Calendar.DAY_OF_MONTH);
-		dateNuit.clear(Calendar.YEAR);
-		dateNuit.clear(Calendar.DAY_OF_WEEK);
-		dateNuit.clear(Calendar.DAY_OF_WEEK_IN_MONTH);
-		Calendar dateJour = Calendar.getInstance();
-		dateJour.setTime(limJour);
-		dateJour.clear(Calendar.DAY_OF_MONTH);
-		dateJour.clear(Calendar.YEAR);
-		dateJour.clear(Calendar.DAY_OF_WEEK);
-		dateJour.clear(Calendar.DAY_OF_WEEK_IN_MONTH);
-		
 		for(int i = 0; i < nb_data; ++i){
-			SimpleDateFormat dateFormat = new SimpleDateFormat("hh:mm:ss");
-			Date d = new Date(keys[i]);
-			Calendar dateCourante = Calendar.getInstance();
-			dateCourante.setTime(d);
-			dateCourante.clear(Calendar.DAY_OF_MONTH);
-			dateCourante.clear(Calendar.YEAR);
-			dateCourante.clear(Calendar.DAY_OF_WEEK);
-			dateCourante.clear(Calendar.DAY_OF_WEEK_IN_MONTH);
-			System.out.println(d);
-			if (dateCourante.compareTo(dateNuit)>0 && dateCourante.compareTo(dateJour)<0 ){
+			
+			if (enJournee(keys[i])){
 				data_jour.put(keys[i], data.get(keys[i]));
 				System.out.println("jour");
 			}
@@ -415,8 +391,34 @@ public class DataWork {
 				System.out.println("nuit");
 			}
 		}
-
 	}
+		public static boolean enJournee(int timestamp){
+			int FinHeureJour  	= Integer.parseInt(limJour.substring(0, 2));
+			int FinMinuteJour 	= Integer.parseInt(limJour.substring(3, 5));
+			int FinSecondeJour	= Integer.parseInt(limJour.substring(6, 8));
+			int FinHeureNuit  	= Integer.parseInt(limNuit.substring(0, 2));
+			int FinMinuteNuit 	= Integer.parseInt(limNuit.substring(3, 5));
+			int FinSecondeNuit	= Integer.parseInt(limNuit.substring(6, 8));
+			String sd = new SimpleDateFormat("HH:mm:ss").format(new Date(timestamp * 1000));
+			int Heure  	= Integer.parseInt(sd.substring(0, 2));
+			int Minute 	= Integer.parseInt(sd.substring(3, 5));
+			int Seconde	= Integer.parseInt(sd.substring(6, 8));
+			
+			if( Heure < FinHeureJour && Heure > FinHeureNuit) return true;
+			else if ( Heure == FinHeureJour){
+				if( Minute < FinMinuteJour) return true;
+				else if ( Minute == FinMinuteJour){
+					if( Seconde < FinSecondeJour) return true;
+				}
+			}
+			else if ( Heure == FinHeureNuit){
+				if( Minute > FinMinuteNuit) return true;
+				else if ( Minute == FinMinuteNuit){
+					if( Seconde > FinSecondeNuit) return true;
+				}
+			}
+			return false;
+		}
 
 		public static HashMap<Integer, Map<String, Double>> tab_to_HashMap(Map<String, Double[]> data, Integer[] keys, String[] cols_name, int nb_data, int nb_cols){
 		HashMap<Integer, Map<String, Double>> new_data = new HashMap<Integer, Map<String, Double>>();
