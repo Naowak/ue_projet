@@ -1,3 +1,4 @@
+package simulator;
 import java.io.*;
 import java.sql.Time;
 import java.text.DateFormat;
@@ -121,6 +122,24 @@ public class DataWork {
 		}
 		return new_data;
 	}
+	
+	public static HashMap<Integer, Map<String, Double>> lissage_data(HashMap<Integer, Map<String, Double>> data){
+		int nb_data = data.size();
+		Integer keys[] = keys_to_array(data, nb_data);
+		
+		int nb_cols = get_nb_cols(data, keys[0]);
+		String cols_name[] = cols_name_to_array(data, keys[0], nb_cols);
+		
+		Map<String, Double[]> data_tab = hashmap_to_tab(data, keys, cols_name, nb_data, nb_cols);
+		
+		for(int j = 0; j < nb_cols; ++j){
+			String cname = cols_name[j];
+			data_tab.put(cname, applyBorne(data_tab.get(cname),cols_name,nb_data,nb_cols));	
+		}
+		
+		return tab_to_HashMap(data_tab, keys, cols_name, nb_data, nb_cols);
+	}
+	
 	public static Double[] applyBorne(Double[] data_tab, String[] cols_name, int nb_data, int nb_cols){
 		for(int i = 0; i < nb_cols; ++i){
 			String cname = cols_name[i];
