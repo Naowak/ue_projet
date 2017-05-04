@@ -2,16 +2,18 @@ package simulator;
 
 import java.io.BufferedReader;
 import java.io.FileInputStream;
-import java.io.FileOutputStream;
+import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStreamReader;
-import java.io.ObjectInputStream;
-import java.io.ObjectOutputStream;
+import java.io.PrintWriter;
+import java.io.UnsupportedEncodingException;
 import java.text.SimpleDateFormat;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.Date;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 
@@ -25,6 +27,9 @@ public class DataWork {
 		MapBorne = Collections.unmodifiableMap(config());
 	}
 
+	/** Fonction permettant de configurer les attributs de la classe
+	 * 	 * @return Map des paramatres
+	 */
 	public static Map<String, Map<String, Double>> config() {
 		Map<String, Map<String, Double>> aMap = new HashMap<String, Map<String, Double>>();
 		FileInputStream f;
@@ -79,13 +84,13 @@ public class DataWork {
 	 * @param data
 	 * @param file_name_out
 	 */
-	public static void print_data(HashMap<Integer, Map<String, Double>> data, String file_name_out){
+	public static void print_data(Map<Integer, Map<String, Double>> data, String file_name_out){
 		int nb_data = data.size();
 		Integer keys[] = keys_to_array(data, nb_data);	
 		int nb_cols = get_nb_cols(data, keys[0]);
 		String cols_name[] = cols_name_to_array(data, keys[0], nb_cols);
 		
-		Map<String, Double[]> tab_data = hashmap_to_tab(data, keys, cols_name, nb_data, nb_cols);		
+		Map<String, Double[]> tab_data = map_to_tab(data, keys, cols_name, nb_data, nb_cols);		
 
 		PrintWriter writer;
 		try {
@@ -113,7 +118,7 @@ public class DataWork {
 	}
 
 	/**
-	 * Prends des données sous forme HashMap<Integer, Map<String, Double>> et les retourne sous forme de 
+	 * Prends des données sous forme Map<Integer, Map<String, Double>> et les retourne sous forme de 
 	 * Map<String, Double[]>. Dans cette nouvelle forme, les clés (Timestamps) ne sont pas retranscrite.
 	 * En revanche, les tableaux liés à chaque paramètre (clé de la map retournée) sont triés dans l'ordre
 	 * des timestamps.
@@ -124,7 +129,7 @@ public class DataWork {
 	 * @param nb_cols
 	 * @return
 	 */
-	public static Map<String, Double[]> hashmap_to_tab(Map<Integer, Map<String, Double>> data, Integer[] keys,
+	public static Map<String, Double[]> map_to_tab(Map<Integer, Map<String, Double>> data, Integer[] keys,
 			String[] cols_name, int nb_data, int nb_cols) {
 		Map<String, Double[]> new_data = new HashMap<String, Double[]>();
 
@@ -145,6 +150,11 @@ public class DataWork {
 		return new_data;
 	}
 
+	/** fonction permettant d'effectuer
+	 *  le lissage des donnees a partir de attributs de la classe
+	 * @param data
+	 * @return data lisser
+	 */
 	public static Map<Integer, Map<String, Double>> lissage_data(Map<Integer, Map<String, Double>> data) {
 		int nb_data = data.size();
 		Integer keys[] = keys_to_array(data, nb_data);
@@ -152,16 +162,22 @@ public class DataWork {
 		int nb_cols = get_nb_cols(data, keys[0]);
 		String cols_name[] = cols_name_to_array(data, keys[0], nb_cols);
 
-		Map<String, Double[]> data_tab = hashmap_to_tab(data, keys, cols_name, nb_data, nb_cols);
+		Map<String, Double[]> data_tab = map_to_tab(data, keys, cols_name, nb_data, nb_cols);
 
 		for (int j = 0; j < nb_cols; ++j) {
 			String cname = cols_name[j];
 			data_tab.put(cname, applyBorne(data_tab.get(cname), cname, nb_data));
 		}
 
-		return tab_to_HashMap(data_tab, keys, cols_name, nb_data, nb_cols);
+		return tab_to_Map(data_tab, keys, cols_name, nb_data, nb_cols);
 	}
 
+	/**Permet d'appliquer de corriger les donnees a la cle en entree 
+	 * @param data_tab
+	 * @param cname
+	 * @param nb_data
+	 * @return donnee modifier
+	 */
 	public static Double[] applyBorne(Double[] data_tab, String cname, int nb_data) {
 		Double[] tab = data_tab.clone();
 			for (int j = 0; j < nb_data; ++j) {
@@ -179,6 +195,12 @@ public class DataWork {
 		return tab;
 	}
 
+	/** Permet d'interpoler la valeur a partir des 10 valeurs precedentes et suivantes
+	 * @param data
+	 * @param indice
+	 * @param taille
+	 * @return valeur interpoler
+	 */
 	public static Double interpolation(Double[] data, int indice, int taille) {
 		int range = 10;
 		int indmin = indice - range > 0 ? indice - range : 0;
@@ -196,6 +218,21 @@ public class DataWork {
 		return val / diviseur;
 	}
 
+	/**Fonction permettant d'analyser les donnees afin de personaliser le fichier pathconfig
+	 * @param data_tab
+	 * @param cols_name
+	 * @param nb_data
+	 * @param nb_cols
+	 * @return Map qui relie a chaque cles de donnee ces statistique selon les cles suivantes:
+	 *  "Min" valeur min
+	 *	"Max" valeur max
+	 *  "Moy" valeur moyenne
+	 *	"Ecart" ecart-type
+	 *  "MinDiff" min difference entre deux valeurs
+	 *	"MaxDiff" max difference entre deux valeurs
+	 *	"MoyDiff" moy des differences entre deux valeurs
+	 *	"EcartDiff"ecart-type des differences entre deux valeurs
+	 */
 	public static Map<String, Map<String, Double>> calcul_stat(Map<String, Double[]> data_tab, String[] cols_name,
 			int nb_data, int nb_cols) {
 		Map<String, Map<String, Double>> stat = new HashMap<String, Map<String, Double>>();
@@ -243,13 +280,13 @@ public class DataWork {
 		return stat;
 	}
 
-		/** Retourne sous forme de tableau d'entier toutes les clés (timestamps) de la HashMap data.
+		/** Retourne sous forme de tableau d'entier toutes les clés (timestamps) de la Map data.
 	 * Le tableau est alors trié dans l'ordre.
 	 * @param data
 	 * @param nb_data
 	 * @return
 	 */
-	public static Integer[] keys_to_array(HashMap<Integer, Map<String, Double>> data, int nb_data){
+	public static Integer[] keys_to_array(Map<Integer, Map<String, Double>> data, int nb_data){
 		Integer keys[] = data.keySet().toArray(new Integer[nb_data]);
 		Arrays.sort(keys);
 		return keys;
@@ -260,18 +297,18 @@ public class DataWork {
 	 * @param key
 	 * @return
 	 */
-	public static int get_nb_cols(HashMap<Integer, Map<String, Double>> data, int key){
+	public static int get_nb_cols(Map<Integer, Map<String, Double>> data, int key){
 		return data.get(key).keySet().size();
 	}
 	/** Retourne le nom de chacune des colonnes de data. Ou autrement dit, les clés des Map<String, Double>>
 	 * contenues dans data.
 	 * @param data
-	 * @param key : Une clé de la HashMap data. (Souvent obtenu grâce à keys[0], keys étant le tableau obtenu
+	 * @param key : Une clé de la Map data. (Souvent obtenu grâce à keys[0], keys étant le tableau obtenu
 	 * par la méthode keys_to_array()
 	 * @param nb_cols
 	 * @return
 	 */
-	public static String[] cols_name_to_array(HashMap<Integer, Map<String, Double>> data, int key, int nb_cols){
+	public static String[] cols_name_to_array(Map<Integer, Map<String, Double>> data, int key, int nb_cols){
 		return data.get(key).keySet().toArray(new String[nb_cols]);
 	}
 
@@ -300,9 +337,9 @@ public class DataWork {
 	 * @param data_bd : Nouvelle Map vide
 	 */
 	public static void separation_data_brumisateur(
-			HashMap<Integer, Map<String, Double>> data,
-			HashMap<Integer, Map<String, Double>> data_ba, //bruimisateur activ�
-			HashMap<Integer, Map<String, Double>> data_bd //bruimisateur d�sactiv�
+			Map<Integer, Map<String, Double>> data,
+			Map<Integer, Map<String, Double>> data_ba, //bruimisateur activ�
+			Map<Integer, Map<String, Double>> data_bd //bruimisateur d�sactiv�
 			){
 		int nb_data = data.size();
 		Integer[] keys = keys_to_array(data, nb_data);
@@ -317,6 +354,13 @@ public class DataWork {
 		}
 	}
 
+	/**Sépare les données contenu dans data en deux différentes bases. Les sorties sont data_ba et data_bd.
+	 * Dans data_jour on retrouve les données de jour selon le pathconfig, 
+	 * dans data_nuit les données de nuit selon le pathconfig.
+	 * @param data
+	 * @param data_jour : Nouvelle Map vide
+	 * @param data_nuit : Nouvelle Map vide
+	 */
 	public static void separation_data_jour_nuit(Map<Integer, Map<String, Double>> data,
 			Map<Integer, Map<String, Double>> data_jour, // jour
 			Map<Integer, Map<String, Double>> data_nuit // nuit
@@ -333,6 +377,10 @@ public class DataWork {
 		}
 	}
 
+	/** Verifie si un timestamp correspond a une valeur de jour ou de nuit
+	 * @param timestamp
+	 * @return boolean
+	 */
 	public static boolean enJournee(int timestamp) {
 		int FinHeureJour = Integer.parseInt(limJour.substring(0, 2));
 		int FinMinuteJour = Integer.parseInt(limJour.substring(3, 5));
@@ -365,21 +413,21 @@ public class DataWork {
 		return false;
 	}
 
-	/** Cette méthode trasforme les données sous forme de Map<String, Double[]> en HashMap<Integer, Map<String, Double>>.
-	 * Les clés pour le HashMap retourné par la fonction sont alors les clés présentes dans keys.
+	/** Cette méthode trasforme les données sous forme de Map<String, Double[]> en Map<Integer, Map<String, Double>>.
+	 * Les clés pour le Map retourné par la fonction sont alors les clés présentes dans keys.
 	 * @param data
-	 * @param keys : (Timestamp que l'on obtient avec en extrayant les clés du HashMap initial grâce à keys_to_array()
+	 * @param keys : (Timestamp que l'on obtient avec en extrayant les clés du Map initial grâce à keys_to_array()
 	 * @param cols_name
 	 * @param nb_data
 	 * @param nb_cols
 	 * @return
 	 */
-	public static HashMap<Integer, Map<String, Double>> tab_to_HashMap(Map<String, Double[]> data, Integer[] keys, String[] cols_name, int nb_data, int nb_cols){
-		HashMap<Integer, Map<String, Double>> new_data = new HashMap<Integer, Map<String, Double>>();
+	public static Map<Integer, Map<String, Double>> tab_to_Map(Map<String, Double[]> data, Integer[] keys, String[] cols_name, int nb_data, int nb_cols){
+		Map<Integer, Map<String, Double>> new_data = new HashMap<Integer, Map<String, Double>>();
 
 		for(int i = 0; i < nb_data; ++i){
 			int key = keys[i];
-			HashMap<String, Double> map_instant_t = new HashMap<String, Double>();
+			Map<String, Double> map_instant_t = new HashMap<String, Double>();
 
 			for(int j = 0; j < nb_cols; ++j){
 				String cname = cols_name[j];
@@ -411,7 +459,7 @@ public class DataWork {
 	 * @param cols_to_remove
 	 * @return
 	 */
-	public static HashMap<Integer, Map<String, Double>> remove_cols(HashMap<Integer, Map<String, Double>> data, String[] cols_to_remove){
+	public static Map<Integer, Map<String, Double>> remove_cols(Map<Integer, Map<String, Double>> data, String[] cols_to_remove){
 		int nb_data = data.size();
 		Integer keys[] = keys_to_array(data, nb_data);
 		
@@ -420,7 +468,7 @@ public class DataWork {
 		int nb_new_cols = nb_cols - cols_to_remove.length;
 		String new_cols_name[] = new String[nb_new_cols];
 				
-		Map<String, Double[]> tab_data = hashmap_to_tab(data, keys, cols_name, nb_data, nb_cols);
+		Map<String, Double[]> tab_data = map_to_tab(data, keys, cols_name, nb_data, nb_cols);
 		Map<String, Double[]> new_tab_data = new HashMap<String, Double[]>();
 
 		int compteur = 0;
@@ -433,7 +481,7 @@ public class DataWork {
 			}
 		}
 
-		return tab_to_HashMap(new_tab_data, keys, new_cols_name, nb_data, nb_new_cols);
+		return tab_to_Map(new_tab_data, keys, new_cols_name, nb_data, nb_new_cols);
 	}
 	
 	/** Filtre les données contenu dans data, par le filtre
@@ -441,8 +489,8 @@ public class DataWork {
 	 * @param filtre 
 	 * @return
 	 */
-	public static HashMap<Integer, Map<String, Double>> filtrage_data(HashMap<Integer, Map<String, Double>> data, int filtre[]) {
-		/* HashMap<Integer, Map<String, Double>> data : données bruitées sous forme de HashMap
+	public static Map<Integer, Map<String, Double>> filtrage_data(Map<Integer, Map<String, Double>> data, int filtre[]) {
+		/* Map<Integer, Map<String, Double>> data : données bruitées sous forme de Map
 		int filtre[] : Filtre à utiliser (ex : [1, 2, 3, 4, 5, 6, 7, 8, 68, 8, 7, 6, 5, 4, 3, 2, 1] )*/
 		
 		int nb_data = data.size();
@@ -458,7 +506,7 @@ public class DataWork {
 		for(int i= 0; i < filtre.length; ++i)
 			coef += filtre[i];
 
-		HashMap<Integer, Map<String, Double>> new_data = new HashMap<Integer, Map<String, Double>>();
+		Map<Integer, Map<String, Double>> new_data = new HashMap<Integer, Map<String, Double>>();
 
 		//Pour chaque dimension
 		for(int i = 0; i < nb_param; ++i){
