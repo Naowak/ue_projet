@@ -75,22 +75,55 @@ public class DataWork {
 		return aMap;
 	}
 
-	public static void main(String[] args) throws Exception {
-		ObjectOutputStream oos = new ObjectOutputStream(
-				new FileOutputStream("./SolarPanelSimulator/data/new_data.ser"));
-		ObjectInputStream ois = new ObjectInputStream(new FileInputStream("./SolarPanelSimulator/data/hashmap.ser"));
-		@SuppressWarnings("unchecked")
-		Map<Integer, Map<String, Double>> data = (Map<Integer, Map<String, Double>>) ois.readObject();
-		ois.close();
+	/** Affiche les données par colonnes
+	 * @param data
+	 * @param file_name_out
+	 */
+	public static void print_data(HashMap<Integer, Map<String, Double>> data, String file_name_out){
+		int nb_data = data.size();
+		Integer keys[] = keys_to_array(data, nb_data);	
+		int nb_cols = get_nb_cols(data, keys[0]);
+		String cols_name[] = cols_name_to_array(data, keys[0], nb_cols);
+		
+		Map<String, Double[]> tab_data = hashmap_to_tab(data, keys, cols_name, nb_data, nb_cols);		
 
-		Map<Integer, Map<String, Double>> ba = new HashMap<Integer, Map<String, Double>>();
-		Map<Integer, Map<String, Double>> bd = new HashMap<Integer, Map<String, Double>>();
-		separation_data_brumisateur(data, ba, bd);
-
-		oos.writeObject(data);
-		oos.close();
+		PrintWriter writer;
+		try {
+			writer = new PrintWriter(file_name_out, "UTF-8");
+			for(int i = 0; i < nb_cols; ++i){
+				String cname = cols_name[i];
+				String separateur = "";
+				writer.println(cname);
+				for(int j = 0; j < nb_data; ++j){
+					writer.print(separateur);
+					writer.print(tab_data.get(cname)[j]);
+					if(separateur == "")
+						separateur = ",";
+				}
+				writer.print("\n");
+			}
+			writer.close();
+		} catch (FileNotFoundException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		} catch (UnsupportedEncodingException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
 	}
 
+	/**
+	 * Prends des données sous forme HashMap<Integer, Map<String, Double>> et les retourne sous forme de 
+	 * Map<String, Double[]>. Dans cette nouvelle forme, les clés (Timestamps) ne sont pas retranscrite.
+	 * En revanche, les tableaux liés à chaque paramètre (clé de la map retournée) sont triés dans l'ordre
+	 * des timestamps.
+	 * @param data 
+	 * @param keys
+	 * @param cols_name
+	 * @param nb_data
+	 * @param nb_cols
+	 * @return
+	 */
 	public static Map<String, Double[]> hashmap_to_tab(Map<Integer, Map<String, Double>> data, Integer[] keys,
 			String[] cols_name, int nb_data, int nb_cols) {
 		Map<String, Double[]> new_data = new HashMap<String, Double[]>();
@@ -210,47 +243,74 @@ public class DataWork {
 		return stat;
 	}
 
-	public static Integer[] keys_to_array(Map<Integer, Map<String, Double>> data, int nb_data) {
+		/** Retourne sous forme de tableau d'entier toutes les clés (timestamps) de la HashMap data.
+	 * Le tableau est alors trié dans l'ordre.
+	 * @param data
+	 * @param nb_data
+	 * @return
+	 */
+	public static Integer[] keys_to_array(HashMap<Integer, Map<String, Double>> data, int nb_data){
 		Integer keys[] = data.keySet().toArray(new Integer[nb_data]);
 		Arrays.sort(keys);
 		return keys;
 	}
-
-	public static int get_nb_cols(Map<Integer, Map<String, Double>> data, int key) {
+	/** Retourne le nombre de colonne que contiennent les Map<String, Double> dans data.
+	 * (En supposant que chacune de ces map contient le même nombre de colonnes).
+	 * @param data
+	 * @param key
+	 * @return
+	 */
+	public static int get_nb_cols(HashMap<Integer, Map<String, Double>> data, int key){
 		return data.get(key).keySet().size();
 	}
-
-	public static String[] cols_name_to_array(Map<Integer, Map<String, Double>> data, int key, int nb_cols) {
+	/** Retourne le nom de chacune des colonnes de data. Ou autrement dit, les clés des Map<String, Double>>
+	 * contenues dans data.
+	 * @param data
+	 * @param key : Une clé de la HashMap data. (Souvent obtenu grâce à keys[0], keys étant le tableau obtenu
+	 * par la méthode keys_to_array()
+	 * @param nb_cols
+	 * @return
+	 */
+	public static String[] cols_name_to_array(HashMap<Integer, Map<String, Double>> data, int key, int nb_cols){
 		return data.get(key).keySet().toArray(new String[nb_cols]);
 	}
 
-	public static boolean brumisateur_used(Map<String, Double> data_instant_t) {
-		String[] cnames = { "Z_01", "Z_02", "Z_03", "Z_04", "Z_05" };
+	/** Retourne true si un brumisateur est activé dans data_instant_t, false sinon
+	 * @param data_instant_t
+	 * @return
+	 */
+	public static boolean brumisateur_used(Map<String, Double> data_instant_t){
+		String[] cnames = {"Z_01", "Z_02", "Z_03", "Z_04", "Z_05"};
 
-		for (int i = 0; i < cnames.length; ++i) {
+		for(int i = 0; i < cnames.length; ++i){
 			String cname = cnames[i];
-			try {
-				if (data_instant_t.get(cname) > 0)
+			try{
+				if(data_instant_t.get(cname) > 0)
 					return true;
-			} catch (Exception e) {
 			}
+			catch(Exception e){}
 		}
 		return false;
 	}
-
-	public static void separation_data_brumisateur(Map<Integer, Map<String, Double>> data,
-			Map<Integer, Map<String, Double>> data_ba, // bruimisateur
-			// activé
-			Map<Integer, Map<String, Double>> data_bd // bruimisateur
-			// désactivé
-			) {
+	/** Sépare les données contenu dans data en deux différentes bases. Les sorties sont data_ba et data_bd.
+	 * Dans data_ba on retrouve les données où le brumisateur est activé, 
+	 * dans data_bd les données où le brumisateur est désactivé.
+	 * @param data
+	 * @param data_ba : Nouvelle Map vide
+	 * @param data_bd : Nouvelle Map vide
+	 */
+	public static void separation_data_brumisateur(
+			HashMap<Integer, Map<String, Double>> data,
+			HashMap<Integer, Map<String, Double>> data_ba, //bruimisateur activ�
+			HashMap<Integer, Map<String, Double>> data_bd //bruimisateur d�sactiv�
+			){
 		int nb_data = data.size();
 		Integer[] keys = keys_to_array(data, nb_data);
-
-		for (int i = 0; i < nb_data; ++i) {
+		
+		for(int i = 0; i < nb_data; ++i){
 			int key = keys[i];
 			Map<String, Double> data_instant_t = data.get(key);
-			if (brumisateur_used(data_instant_t))
+			if(brumisateur_used(data_instant_t))
 				data_ba.put(key, data_instant_t);
 			else
 				data_bd.put(key, data_instant_t);
@@ -305,15 +365,23 @@ public class DataWork {
 		return false;
 	}
 
-	public static Map<Integer, Map<String, Double>> tab_to_HashMap(Map<String, Double[]> data, Integer[] keys,
-			String[] cols_name, int nb_data, int nb_cols) {
-		Map<Integer, Map<String, Double>> new_data = new HashMap<Integer, Map<String, Double>>();
+	/** Cette méthode trasforme les données sous forme de Map<String, Double[]> en HashMap<Integer, Map<String, Double>>.
+	 * Les clés pour le HashMap retourné par la fonction sont alors les clés présentes dans keys.
+	 * @param data
+	 * @param keys : (Timestamp que l'on obtient avec en extrayant les clés du HashMap initial grâce à keys_to_array()
+	 * @param cols_name
+	 * @param nb_data
+	 * @param nb_cols
+	 * @return
+	 */
+	public static HashMap<Integer, Map<String, Double>> tab_to_HashMap(Map<String, Double[]> data, Integer[] keys, String[] cols_name, int nb_data, int nb_cols){
+		HashMap<Integer, Map<String, Double>> new_data = new HashMap<Integer, Map<String, Double>>();
 
-		for (int i = 0; i < nb_data; ++i) {
+		for(int i = 0; i < nb_data; ++i){
 			int key = keys[i];
-			Map<String, Double> map_instant_t = new HashMap<String, Double>();
+			HashMap<String, Double> map_instant_t = new HashMap<String, Double>();
 
-			for (int j = 0; j < nb_cols; ++j) {
+			for(int j = 0; j < nb_cols; ++j){
 				String cname = cols_name[j];
 				map_instant_t.put(cname, data.get(cname)[i]);
 			}
@@ -323,37 +391,129 @@ public class DataWork {
 		return new_data;
 	}
 
-	public static boolean string_in_array(String[] tab, String str) {
-		for (int i = 0; i < tab.length; ++i) {
-			if (str.equals(tab[i]))
+	
+	/** Retourne true si str est dans tab, false sinon
+	 * @param tab
+	 * @param str
+	 * @return
+	 */
+	public static boolean string_in_array(String[] tab, String str){
+		for(int i = 0; i < tab.length; ++i){
+			if(str.equals(tab[i]))
 				return true;
 		}
 		return false;
 	}
 
-	public static Map<Integer, Map<String, Double>> remove_cols(Map<Integer, Map<String, Double>> data,
-			String[] cols_to_remove) {
+
+	/** Créer et renvoi une nouvelle Map des données data, où les colonnes appartenant à cols_to_remove sont supprimées. 
+	 * @param data
+	 * @param cols_to_remove
+	 * @return
+	 */
+	public static HashMap<Integer, Map<String, Double>> remove_cols(HashMap<Integer, Map<String, Double>> data, String[] cols_to_remove){
 		int nb_data = data.size();
 		Integer keys[] = keys_to_array(data, nb_data);
-
+		
 		int nb_cols = get_nb_cols(data, keys[0]);
 		String cols_name[] = cols_name_to_array(data, keys[0], nb_cols);
 		int nb_new_cols = nb_cols - cols_to_remove.length;
 		String new_cols_name[] = new String[nb_new_cols];
-
+				
 		Map<String, Double[]> tab_data = hashmap_to_tab(data, keys, cols_name, nb_data, nb_cols);
 		Map<String, Double[]> new_tab_data = new HashMap<String, Double[]>();
 
 		int compteur = 0;
-		for (int i = 0; i < nb_cols; ++i) {
+		for(int i = 0; i < nb_cols; ++i){
 			String cname = cols_name[i];
-			if (!string_in_array(cols_to_remove, cname)) {
+			if(!string_in_array(cols_to_remove, cname)){
 				new_tab_data.put(cname, tab_data.get(cname));
 				new_cols_name[compteur] = cname;
 				compteur += 1;
 			}
 		}
+
 		return tab_to_HashMap(new_tab_data, keys, new_cols_name, nb_data, nb_new_cols);
 	}
+	
+	/** Filtre les données contenu dans data, par le filtre
+	 * @param data
+	 * @param filtre 
+	 * @return
+	 */
+	public static HashMap<Integer, Map<String, Double>> filtrage_data(HashMap<Integer, Map<String, Double>> data, int filtre[]) {
+		/* HashMap<Integer, Map<String, Double>> data : données bruitées sous forme de HashMap
+		int filtre[] : Filtre à utiliser (ex : [1, 2, 3, 4, 5, 6, 7, 8, 68, 8, 7, 6, 5, 4, 3, 2, 1] )*/
+		
+		int nb_data = data.size();
+		Integer keys[] = keys_to_array(data, nb_data);
+		int nb_param = get_nb_cols(data, keys[0]);
+		String cols_name[] = cols_name_to_array(data, keys[0], nb_param);
+		
+		List<String> param = new ArrayList<String>();
+		for(int i = 0; i < nb_param; ++i)
+			param.add(cols_name[i]);
+		
+		int coef = 0;
+		for(int i= 0; i < filtre.length; ++i)
+			coef += filtre[i];
 
+		HashMap<Integer, Map<String, Double>> new_data = new HashMap<Integer, Map<String, Double>>();
+
+		//Pour chaque dimension
+		for(int i = 0; i < nb_param; ++i){
+			//On récupère les paramètres demandés, et on gère les paramètres "multi-colonnes"
+			String p = param.get(i);
+			List<String> ps = new ArrayList<String>();
+			int taille_ps = 0;
+			if(p == "RENDEMENT"){
+				//Le paramètre rendement correspond à trois paramètres de la map
+				//(P_01, P_02, P_03)
+				ps.add("P_01");
+				ps.add("P_02");
+				ps.add("P_03");
+				taille_ps = 3;
+			}
+			else{
+				ps.add(p);
+				taille_ps = 1;
+			}
+
+			//Dans le cas où le paramètre demandé est réparti sur plusieurs paramètre de la map 
+			//(exemple le rendement, qui est sur trois paramètre : P_01, P_02, P_03)
+			//On tourne sur chacun d'entre eux (la ArrayList ps)
+			for(int cmp = 0; cmp < taille_ps; ++cmp){
+				p = ps.get(cmp);
+
+				int debut_parcours_data = filtre.length/2;
+				int fin_parcours_data = nb_data - filtre.length/2;
+				//On parcours les données (on fait gaffe aux extrémités sur lesquelles le filtre 
+				//ne peut être appliqué, sinon dépassement de tableau)
+				for(int j = debut_parcours_data; j < fin_parcours_data; ++j){
+					if(new_data.get(keys[j]) == null){
+					//Si new_data n'existe pas encore pour le timestamp j, on le créer
+						new_data.put(keys[j], new HashMap<String, Double>());
+					}
+					double new_value = 0;
+					int debut_k = -filtre.length/2;
+					int fin_k = filtre.length - filtre.length/2;
+					for(int k = debut_k; k < fin_k; ++k){
+						//pour tous les k points avant et après, on fait la somme pondérée
+						try{
+							new_value += data.get(keys[j+k]).get(p)*filtre[k+filtre.length/2];
+						}
+						catch(Exception e){
+							//Dans le cas où la donnée est manquante
+							new_value += 0;
+						}
+					}
+					//On calcule la moyenne
+					new_value = new_value / coef;
+					//On met la moyenne dans new_data
+					new_data.get(keys[j]).put(p, new_value);
+				}
+			}
+		}
+		return new_data;
+	}
 }
