@@ -14,7 +14,6 @@ import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
 
-import org.jfree.ui.RefineryUtilities;
 
 public class DataWork {
 
@@ -37,12 +36,9 @@ public class DataWork {
 			String ligne;
 			while ((ligne = brf.readLine()) != null) {
 				if (!ligne.isEmpty() && ligne.charAt(0) == 'l') {
-					// System.out.println(ligne.charAt(0));
-					// System.out.println(ligne);
 					Map<String, Double> tmp = new HashMap<String, Double>();
 					String tab[] = ligne.split("\\s+");
 					for (int i = 0; i < tab.length; i++) {
-						// System.out.println(tab[i]);
 					}
 					if (tab[2].equals("?")) {
 						tmp.put("Min", Double.NEGATIVE_INFINITY);
@@ -84,11 +80,11 @@ public class DataWork {
 				new FileOutputStream("./SolarPanelSimulator/data/new_data.ser"));
 		ObjectInputStream ois = new ObjectInputStream(new FileInputStream("./SolarPanelSimulator/data/hashmap.ser"));
 		@SuppressWarnings("unchecked")
-		HashMap<Integer, Map<String, Double>> data = (HashMap<Integer, Map<String, Double>>) ois.readObject();
+		Map<Integer, Map<String, Double>> data = (Map<Integer, Map<String, Double>>) ois.readObject();
 		ois.close();
 
-		HashMap<Integer, Map<String, Double>> ba = new HashMap<Integer, Map<String, Double>>();
-		HashMap<Integer, Map<String, Double>> bd = new HashMap<Integer, Map<String, Double>>();
+		Map<Integer, Map<String, Double>> ba = new HashMap<Integer, Map<String, Double>>();
+		Map<Integer, Map<String, Double>> bd = new HashMap<Integer, Map<String, Double>>();
 		separation_data_brumisateur(data, ba, bd);
 
 		oos.writeObject(data);
@@ -143,9 +139,7 @@ public class DataWork {
 				if (j > 0) {
 					Double diff = Math.abs(tab[j-1] - tab[j]);
 					if (diff > MapBorne.get(cname).get("Ecart")) {
-						Double last = tab[j];
 						tab[j] = interpolation(tab, j, nb_data);
-						System.out.println("interpolation"+j + "ancienne valeur" + last+ "nouvelle valeur" + tab[j]);
 					}
 				}
 		}
@@ -159,7 +153,6 @@ public class DataWork {
 		Double val = 0.0;
 		Double diviseur = 0.0;
 		Double coeff;
-		System.out.println("i :"+ indice + "imin :" + indmin + "imax :" + indmax);
 		for (int i = indmin; i <= indmax; i++) {
 			if(i!=indice){
 			coeff = 1.0 / Math.abs(indice - i);
@@ -214,10 +207,6 @@ public class DataWork {
 			stat.get(cname).put("Ecart", stat.get(cname).get("Ecart") / nb_data);
 			stat.get(cname).put("EcartDiff", stat.get(cname).get("EcartDiff") / (nb_data - 1));
 		}
-		for (int i = 0; i < nb_cols; ++i) {
-			String cname = cols_name[i];
-			System.out.println(cname + stat.get(cname));
-		}
 		return stat;
 	}
 
@@ -266,14 +255,11 @@ public class DataWork {
 			else
 				data_bd.put(key, data_instant_t);
 		}
-		// System.out.println(data_ba);
-		// System.out.println("\n\n\n\n\n");
-		// System.out.println(data_bd);
 	}
 
 	public static void separation_data_jour_nuit(Map<Integer, Map<String, Double>> data,
-			HashMap<Integer, Map<String, Double>> data_jour, // jour
-			HashMap<Integer, Map<String, Double>> data_nuit // nuit
+			Map<Integer, Map<String, Double>> data_jour, // jour
+			Map<Integer, Map<String, Double>> data_nuit // nuit
 			) {
 		int nb_data = data.size();
 		Integer[] keys = keys_to_array(data, nb_data);
@@ -281,10 +267,8 @@ public class DataWork {
 
 			if (enJournee(keys[i])) {
 				data_jour.put(keys[i], data.get(keys[i]));
-				System.out.println("jour");
 			} else {
 				data_nuit.put(keys[i], data.get(keys[i]));
-				System.out.println("nuit");
 			}
 		}
 	}
@@ -321,13 +305,13 @@ public class DataWork {
 		return false;
 	}
 
-	public static HashMap<Integer, Map<String, Double>> tab_to_HashMap(Map<String, Double[]> data, Integer[] keys,
+	public static Map<Integer, Map<String, Double>> tab_to_HashMap(Map<String, Double[]> data, Integer[] keys,
 			String[] cols_name, int nb_data, int nb_cols) {
-		HashMap<Integer, Map<String, Double>> new_data = new HashMap<Integer, Map<String, Double>>();
+		Map<Integer, Map<String, Double>> new_data = new HashMap<Integer, Map<String, Double>>();
 
 		for (int i = 0; i < nb_data; ++i) {
 			int key = keys[i];
-			HashMap<String, Double> map_instant_t = new HashMap<String, Double>();
+			Map<String, Double> map_instant_t = new HashMap<String, Double>();
 
 			for (int j = 0; j < nb_cols; ++j) {
 				String cname = cols_name[j];
@@ -347,7 +331,7 @@ public class DataWork {
 		return false;
 	}
 
-	public static HashMap<Integer, Map<String, Double>> remove_cols(HashMap<Integer, Map<String, Double>> data,
+	public static Map<Integer, Map<String, Double>> remove_cols(Map<Integer, Map<String, Double>> data,
 			String[] cols_to_remove) {
 		int nb_data = data.size();
 		Integer keys[] = keys_to_array(data, nb_data);
